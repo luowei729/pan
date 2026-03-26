@@ -10,7 +10,9 @@ pipeline {
 
         stage('拉代码') {
             steps {
-                git 'https://github.com/luowei729/pan.git'
+                deleteDir()
+                git branch: 'main',
+                    url: 'https://github.com/luowei729/pan.git'
             }
         }
 
@@ -33,14 +35,35 @@ pipeline {
             }
         }
 
+        stage('创建镜像拉取凭证') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'ghcr-token', variable: 'TOKEN'),
+                    file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')
+                ]) {
+                    sh '''
+                    export KUBECONFIG=$KUBECONFIG
+
+                    kubectl create secret docker-registry ghcr-secret \
+                      --docker-server=ghcr.io \
+                      --docker-username=luowei729 \
+                      --docker-password=$TOKEN \
+                      --docker-email=xxx@gmail.com \
+                      --dry-run=client -o yaml | kubectl apply -f -
+                    '''
+                }
+            }
+        }
+
         stage('部署到 K8s') {
             steps {
                 withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
                     sh """
+                    export KUBECONFIG=$KUBECONFIG
+
                     kubectl apply -f k8s/
 
-                    kubectl set image deployment/pan \
-                    php-site=$IMAGE:$TAG
+                    kubectl rollout restart deployment/pan
 
                     kubectl rollout status deployment/pan
                     """

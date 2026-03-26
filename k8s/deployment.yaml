@@ -12,8 +12,11 @@ spec:
       labels:
         app: pan
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
-      - name: pan
-        image: ghcr.io/luowei729/pan:latest
-        ports:
-        - containerPort: 80
+        - name: pan
+          image: ghcr.io/luowei729/pan:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
