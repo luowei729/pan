@@ -2,8 +2,18 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: pan
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
 spec:
   ingressClassName: public
+
+  tls:
+  - hosts:
+    - pan.lkz.me
+    secretName: pan-tls   # 证书会自动生成
+
   rules:
   - host: pan.lkz.me
     http:
