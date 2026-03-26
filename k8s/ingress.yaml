@@ -3,6 +3,7 @@ kind: Ingress
 metadata:
   name: pan
 spec:
+  ingressClassName: public
   rules:
   - host: pan.lkz.me
     http:
