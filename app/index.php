@@ -59,11 +59,12 @@ $default_timezone = 'Asia/Shanghai'; // 北京时间
 
 // Root path for file manager
 // use absolute path of directory i.e: '/var/www/folder' or $_SERVER['DOCUMENT_ROOT'].'/folder'
-$root_path = '/var/www/folder';
+// Defaults to the bundled upload directory and can be overridden at deploy time.
+$root_path = getenv('FM_ROOT_PATH') ?: __DIR__ . '/www';
 
 // Root url for links in file manager.Relative to $http_host. Variants: '', 'path/to/subfolder'
 // Will not working if $root_path will be outside of server document root
-$root_url = '';
+$root_url = getenv('FM_ROOT_URL') ?: 'www';
 
 // Server hostname. Can set manually if wrong
 // $_SERVER['HTTP_HOST'].'/folder'
@@ -254,6 +255,15 @@ if (empty($_SESSION['token'])) {
 
 if (empty($auth_users)) {
     $use_auth = false;
+}
+
+// Fail fast for the shared root directory so a bad path is visible before login.
+if (empty($directories_users)) {
+    $root_path = rtrim(str_replace('\\', '/', $root_path), '\\/');
+    if (!@is_dir($root_path)) {
+        echo "<h1>" . lng('Root path') . " \"{$root_path}\" " . lng('not found!') . " </h1>";
+        exit;
+    }
 }
 
 $is_https = isset($_SERVER['HTTPS']) && ($_SERVER['HTTPS'] == 'on' || $_SERVER['HTTPS'] == 1)
