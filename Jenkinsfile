@@ -10,7 +10,7 @@ pipeline {
 
         stage('拉代码') {
             steps {
-                git 'https://github.com/pan.git'
+                git 'https://github.com/luowei729/pan.git'
             }
         }
 
