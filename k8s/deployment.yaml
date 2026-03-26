@@ -12,11 +12,26 @@ spec:
       labels:
         app: pan
     spec:
+      securityContext:
+        fsGroup: 33
+        fsGroupChangePolicy: OnRootMismatch
       imagePullSecrets:
         - name: ghcr-secret
       containers:
         - name: pan
           image: ghcr.io/luowei729/pan:latest
           imagePullPolicy: Always
+          env:
+            - name: FM_ROOT_PATH
+              value: /var/www/html/www
+            - name: FM_ROOT_URL
+              value: www
           ports:
             - containerPort: 80
+          volumeMounts:
+            - name: pan-storage
+              mountPath: /var/www/html/www
+      volumes:
+        - name: pan-storage
+          persistentVolumeClaim:
+            claimName: pan-storage
