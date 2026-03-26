@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pan
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: pan
+  template:
+    metadata:
+      labels:
+        app: pan
+    spec:
+      containers:
+      - name: pan
+        image: ghcr.io/luowei729/pan:latest
+        ports:
+        - containerPort: 80
