@@ -2,8 +2,16 @@ pipeline {
     agent any
 
     environment {
-        IMAGE = "ghcr.io/luowei729/pan"
-        TAG = "${env.BUILD_NUMBER}"
+        IMAGE      = "ghcr.io/luowei729/pan"
+        TAG        = "${env.BUILD_NUMBER}"
+        CACHE_TAG  = "cache"
+        K8S_NAMESPACE = "pan"
+
+        // ⚠️ 如果觉得慢，先改成 linux/amd64（强烈建议）
+        PLATFORMS  = "linux/amd64,linux/arm64"
+
+        DOCKER_CLI_EXPERIMENTAL = "enabled"
+        DOCKER_BUILDKIT = "1"
     }
 
     stages {
@@ -11,62 +19,104 @@ pipeline {
         stage('拉代码') {
             steps {
                 deleteDir()
-                git branch: 'main',
-                    url: 'https://github.com/luowei729/pan.git'
+                git branch: 'main', url: 'https://github.com/luowei729/pan.git'
             }
         }
 
-        stage('构建镜像') {
+        stage('检查 Docker / buildx') {
             steps {
-                sh "docker build -t $IMAGE:$TAG ."
-                sh "docker tag $IMAGE:$TAG $IMAGE:latest"
+                sh '''
+                    set -eux
+                    docker version
+                    docker buildx version || true
+                    docker buildx ls || true
+                '''
             }
         }
 
-        stage('推送镜像') {
+        stage('准备 buildx / qemu') {
+            steps {
+                sh '''
+                    set -eux
+
+                    # 注册 QEMU（支持 arm64）
+                    docker run --rm --privileged tonistiigi/binfmt --install all || true
+
+                    # 创建 builder
+                    docker buildx create --name panbuilder --driver docker-container --use 2>/dev/null || docker buildx use panbuilder
+
+                    docker buildx inspect --bootstrap
+                '''
+            }
+        }
+
+        stage('登录 GHCR') {
             steps {
                 withCredentials([string(credentialsId: 'ghcr-token', variable: 'TOKEN')]) {
-                    sh """
-                    echo $TOKEN | docker login ghcr.io -u luowei729 --password-stdin
-                    docker push $IMAGE:$TAG
-                    docker push $IMAGE:latest
-                    """
+                    sh '''
+                        set -eux
+                        echo "$TOKEN" | docker login ghcr.io -u luowei729 --password-stdin
+                    '''
                 }
             }
         }
 
-        stage('创建镜像拉取凭证') {
+        stage('拉取缓存镜像') {
+            steps {
+                sh '''
+                    set -eux
+                    docker pull ${IMAGE}:${CACHE_TAG} || true
+                '''
+            }
+        }
+
+        stage('Buildx 多架构构建并缓存') {
+            steps {
+                sh '''
+                    set -eux
+
+                    docker buildx build \
+                      --platform ${PLATFORMS} \
+                      --cache-from type=registry,ref=${IMAGE}:${CACHE_TAG} \
+                      --cache-to type=registry,ref=${IMAGE}:${CACHE_TAG},mode=max \
+                      --build-arg BUILDKIT_INLINE_CACHE=1 \
+                      -t ${IMAGE}:${TAG} \
+                      -t ${IMAGE}:latest \
+                      --push \
+                      .
+                '''
+            }
+        }
+
+        // ✅ 回归最稳定写法（你原来的方式）
+        stage('部署到 K8s') {
             steps {
                 withCredentials([
                     string(credentialsId: 'ghcr-token', variable: 'TOKEN'),
                     file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')
                 ]) {
                     sh '''
-                    export KUBECONFIG=$KUBECONFIG
+                        set -eux
+                        export KUBECONFIG=$KUBECONFIG
 
-                    kubectl create secret docker-registry ghcr-secret \
-                      --docker-server=ghcr.io \
-                      --docker-username=luowei729 \
-                      --docker-password=$TOKEN \
-                      --docker-email=xxx@gmail.com \
-                      --dry-run=client -o yaml | kubectl apply -f -
+                        kubectl apply -f k8s/namespace.yaml
+
+                        # 创建/更新镜像拉取凭证
+                        kubectl create secret docker-registry ghcr-secret \
+                          -n ${K8S_NAMESPACE} \
+                          --docker-server=ghcr.io \
+                          --docker-username=luowei729 \
+                          --docker-password=$TOKEN \
+                          --docker-email=xxx@gmail.com \
+                          --dry-run=client -o yaml | kubectl apply -f -
+
+                        # 部署
+                        kubectl apply -f k8s/
+
+                        # 滚动更新
+                        kubectl rollout restart deployment/pan -n ${K8S_NAMESPACE}
+                        kubectl rollout status deployment/pan -n ${K8S_NAMESPACE}
                     '''
-                }
-            }
-        }
-
-        stage('部署到 K8s') {
-            steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
-                    sh """
-                    export KUBECONFIG=$KUBECONFIG
-
-                    kubectl apply -f k8s/
-
-                    kubectl rollout restart deployment/pan
-
-                    kubectl rollout status deployment/pan
-                    """
                 }
             }
         }

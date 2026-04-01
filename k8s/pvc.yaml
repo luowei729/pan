@@ -2,13 +2,12 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: pan-pvc
-  namespace: default
+  namespace: pan
 spec:
+  storageClassName: longhorn
   accessModes:
     - ReadWriteMany
 
   resources:
     requests:
       storage: 5Gi
-
-  volumeName: pan-pv

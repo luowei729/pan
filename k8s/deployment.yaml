@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pan
-  namespace: default
+  namespace: pan
 spec:
   replicas: 2
 
@@ -16,6 +16,52 @@ spec:
         app: pan
 
     spec:
+      initContainers:
+        - name: seed-www-data
+          image: ghcr.io/luowei729/pan:latest
+          imagePullPolicy: Always
+          command:
+            - sh
+            - -ec
+            - |
+              target=/seed
+              marker="$target/.seeded-from-image"
+              lockdir="$target/.seed-lock"
+
+              mkdir -p "$target"
+
+              if [ -f "$marker" ]; then
+                echo "Volume already initialized."
+                exit 0
+              fi
+
+              if mkdir "$lockdir" 2>/dev/null; then
+                trap 'rmdir "$lockdir"' EXIT
+
+                if [ ! -f "$marker" ]; then
+                  if find "$target" -mindepth 1 -maxdepth 1 \
+                    ! -name '.seed-lock' \
+                    ! -name '.seeded-from-image' \
+                    -print -quit | grep -q .; then
+                    echo "Volume already contains data, skipping seed copy."
+                    touch "$marker"
+                    exit 0
+                  fi
+
+                  cp -a /var/www/html/www/. "$target"/
+                  touch "$marker"
+                  echo "Seeded files into PVC."
+                fi
+              else
+                echo "Waiting for another pod to finish seeding..."
+                while [ ! -f "$marker" ]; do
+                  sleep 2
+                done
+              fi
+          volumeMounts:
+            - name: html-volume
+              mountPath: /seed
+
       containers:
         - name: pan
           image: ghcr.io/luowei729/pan:latest
@@ -27,7 +73,7 @@ spec:
           # ✅ 使用 PVC（替代 hostPath）
           volumeMounts:
             - name: html-volume
-              mountPath: /var/www/html
+              mountPath: /var/www/html/www
 
       volumes:
         - name: html-volume
