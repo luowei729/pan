@@ -2,21 +2,37 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: pan
+  namespace: default
 spec:
   replicas: 2
+
   selector:
     matchLabels:
       app: pan
+
   template:
     metadata:
       labels:
         app: pan
+
     spec:
-      imagePullSecrets:
-        - name: ghcr-secret
       containers:
         - name: pan
           image: ghcr.io/luowei729/pan:latest
           imagePullPolicy: Always
+
           ports:
             - containerPort: 80
+
+          # ✅ 使用 PVC（替代 hostPath）
+          volumeMounts:
+            - name: html-volume
+              mountPath: /var/www/html
+
+      volumes:
+        - name: html-volume
+          persistentVolumeClaim:
+            claimName: pan-pvc
+
+      imagePullSecrets:
+        - name: ghcr-secret
