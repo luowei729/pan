@@ -59,12 +59,11 @@ $default_timezone = 'Asia/Shanghai'; // 北京时间
 
 // Root path for file manager
 // use absolute path of directory i.e: '/var/www/folder' or $_SERVER['DOCUMENT_ROOT'].'/folder'
-// Defaults to the bundled upload directory and can be overridden at deploy time.
-$root_path = getenv('FM_ROOT_PATH') ?: __DIR__ . '/www';
+$root_path = $_SERVER['DOCUMENT_ROOT'];
 
 // Root url for links in file manager.Relative to $http_host. Variants: '', 'path/to/subfolder'
 // Will not working if $root_path will be outside of server document root
-$root_url = getenv('FM_ROOT_URL') ?: 'www';
+$root_url = '';
 
 // Server hostname. Can set manually if wrong
 // $_SERVER['HTTP_HOST'].'/folder'
