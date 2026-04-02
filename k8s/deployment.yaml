@@ -36,7 +36,7 @@ spec:
               }
 
               seed_image_files() {
-                # Merge image seed files into the PVC without overwriting user data.
+                # Merge bundled seed files into the PVC without overwriting user data.
                 cp -an /var/www/html/. "$target"/
               }
 
@@ -67,10 +67,10 @@ spec:
           ports:
             - containerPort: 80
 
-          # ✅ 使用 PVC（替代 hostPath）
+          # PVC stores the app root directly, including index.php and uploaded files.
           volumeMounts:
             - name: html-volume
-              mountPath: /var/www/html/
+              mountPath: /var/www/html
 
       volumes:
         - name: html-volume
