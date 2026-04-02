@@ -37,7 +37,7 @@ spec:
 
               seed_image_files() {
                 # Merge image seed files into the PVC without overwriting user data.
-                cp -an /var/www/html/www/. "$target"/
+                cp -an /var/www/html/. "$target"/
               }
 
               mkdir -p "$target"
