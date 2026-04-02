@@ -1003,6 +1003,18 @@ if (!empty($_FILES) && !FM_READONLY) {
     $fullPath = $path . '/' . $fullPathInput;
     $folder = dirname($fullPath);
 
+    fm_log_upload_error('upload_request', array(
+        'path' => $path,
+        'targetPath' => $path . $ds,
+        'fullPathInput' => $fullPathInput,
+        'fullPath' => $fullPath,
+        'folder' => $folder,
+        'chunkIndex' => $chunkIndex,
+        'chunkTotal' => $chunkTotal,
+        'filename' => $filename,
+        'tmp_name' => $tmp_name,
+    ));
+
     if (!is_dir($folder)) {
         $old = umask(0);
         $created = @mkdir($folder, 0777, true);
@@ -2597,7 +2609,10 @@ function fm_log_upload_error($reason, $context = array())
         'context' => $context,
     );
 
-    error_log('fm_upload_error ' . json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+    $line = 'fm_upload_error ' . json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+    error_log($line);
+    @file_put_contents('/tmp/fm_upload_debug.log', $line . PHP_EOL, FILE_APPEND);
 }
 
 /**
