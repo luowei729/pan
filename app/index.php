@@ -211,6 +211,10 @@ if ($report_errors == true) {
     @ini_set('display_errors', 0);
 }
 
+// Send explicit upload diagnostics to container logs so mounted-volume issues can be debugged from kubectl logs.
+@ini_set('log_errors', 1);
+@ini_set('error_log', '/proc/self/fd/2');
+
 // if fm included
 if (defined('FM_EMBED')) {
     $use_auth = false;
