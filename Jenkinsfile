@@ -110,11 +110,17 @@ pipeline {
                           --docker-email=xxx@gmail.com \
                           --dry-run=client -o yaml | kubectl apply -f -
 
-                        # 部署
-                        kubectl apply -f k8s/
+                        # 部署非 Deployment 资源
+                        for manifest in k8s/*.yaml; do
+                          case "$manifest" in
+                            k8s/namespace.yaml|k8s/deployment.yaml) continue ;;
+                          esac
+                          kubectl apply -f "$manifest"
+                        done
 
-                        # 滚动更新
-                        kubectl rollout restart deployment/pan -n ${K8S_NAMESPACE}
+                        # 使用当前构建号渲染 Deployment，避免 latest + rollout restart 产生额外 ReplicaSet
+                        sed "s|${IMAGE}:latest|${IMAGE}:${TAG}|g" k8s/deployment.yaml | kubectl apply -f -
+
                         kubectl rollout status deployment/pan -n ${K8S_NAMESPACE}
                     '''
                 }

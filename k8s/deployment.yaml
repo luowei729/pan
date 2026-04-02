@@ -5,6 +5,7 @@ metadata:
   namespace: pan
 spec:
   replicas: 2
+  revisionHistoryLimit: 3
 
   selector:
     matchLabels:
