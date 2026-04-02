@@ -997,13 +997,21 @@ if (!empty($_FILES) && !FM_READONLY) {
     }
 
     $fullPath = $path . '/' . $fullPathInput;
-    $folder = substr($fullPath, 0, strrpos($fullPath, "/"));
+    $folder = dirname($fullPath);
 
     if (!is_dir($folder)) {
         $old = umask(0);
         $created = @mkdir($folder, 0777, true);
         umask($old);
         if (!$created && !is_dir($folder)) {
+            fm_log_upload_error('mkdir_failed', array(
+                'path' => $path,
+                'targetPath' => $path . $ds,
+                'fullPathInput' => $fullPathInput,
+                'fullPath' => $fullPath,
+                'folder' => $folder,
+                'php_error' => error_get_last(),
+            ));
             $response = array(
                 'status' => 'error',
                 'info'   => 'The specified folder for upload isn\'t writeable.'
@@ -1053,6 +1061,14 @@ if (!empty($_FILES) && !FM_READONLY) {
                     'info' => "file upload successful"
                 );
             } else {
+                fm_log_upload_error('open_chunk_output_failed', array(
+                    'path' => $path,
+                    'targetPath' => $path . $ds,
+                    'fullPathInput' => $fullPathInput,
+                    'fullPath' => $fullPath,
+                    'folder' => $folder,
+                    'php_error' => error_get_last(),
+                ));
                 $response = array(
                     'status'    => 'error',
                     'info' => "failed to open output stream"
@@ -1082,6 +1098,14 @@ if (!empty($_FILES) && !FM_READONLY) {
                 );
             }
         } else {
+            fm_log_upload_error('move_uploaded_file_failed', array(
+                'path' => $path,
+                'targetPath' => $path . $ds,
+                'fullPathInput' => $fullPathInput,
+                'fullPath' => $fullPath,
+                'folder' => $folder,
+                'php_error' => error_get_last(),
+            ));
             $response = array(
                 'status'    => 'error',
                 'info'      => "Error while uploading files. Uploaded files $uploads",
@@ -2554,6 +2578,22 @@ function fm_is_writable_path($path)
 
     @unlink($probe);
     return true;
+}
+
+/**
+ * Log upload failures with resolved paths for debugging mounted-volume issues.
+ * @param string $reason
+ * @param array $context
+ * @return void
+ */
+function fm_log_upload_error($reason, $context = array())
+{
+    $payload = array(
+        'reason' => $reason,
+        'context' => $context,
+    );
+
+    error_log('fm_upload_error ' . json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 }
 
 /**
