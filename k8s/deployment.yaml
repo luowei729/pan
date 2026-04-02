@@ -26,7 +26,6 @@ spec:
             - -ec
             - |
               target=/seed
-              marker="$target/.seeded-from-image"
               lockdir="$target/.seed-lock"
 
               fix_permissions() {
@@ -36,30 +35,22 @@ spec:
                 find "$target" -type f -exec chmod ug+rw,o+r {} +
               }
 
+              seed_image_files() {
+                # Merge image seed files into the PVC without overwriting user data.
+                cp -an /var/www/html/www/. "$target"/
+              }
+
               mkdir -p "$target"
 
-              if [ ! -f "$marker" ]; then
-                if mkdir "$lockdir" 2>/dev/null; then
-                  trap 'rmdir "$lockdir"' EXIT
-
-                  if [ ! -f "$marker" ]; then
-                    if find "$target" -mindepth 1 -maxdepth 1 \
-                      ! -name '.seed-lock' \
-                      ! -name '.seeded-from-image' \
-                      -print -quit | grep -q .; then
-                      echo "Volume already contains data, skipping seed copy."
-                    else
-                      cp -a /var/www/html/www/. "$target"/
-                      echo "Seeded files into PVC."
-                    fi
-                    touch "$marker"
-                  fi
-                else
-                  echo "Waiting for another pod to finish seeding..."
-                  while [ ! -f "$marker" ]; do
-                    sleep 2
-                  done
-                fi
+              if mkdir "$lockdir" 2>/dev/null; then
+                trap 'rmdir "$lockdir"' EXIT
+                seed_image_files
+                echo "Merged image files into PVC without overwriting existing data."
+              else
+                echo "Waiting for another pod to finish seeding..."
+                while [ -d "$lockdir" ]; do
+                  sleep 2
+                done
               fi
 
               fix_permissions

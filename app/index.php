@@ -1020,6 +1020,14 @@ if (!empty($_FILES) && !FM_READONLY) {
         $created = @mkdir($folder, 0777, true);
         umask($old);
         if (!$created && !is_dir($folder)) {
+            $debugContext = array(
+                'path' => $path,
+                'targetPath' => $path . $ds,
+                'fullPathInput' => $fullPathInput,
+                'fullPath' => $fullPath,
+                'folder' => $folder,
+                'php_error' => error_get_last(),
+            );
             fm_log_upload_error('mkdir_failed', array(
                 'path' => $path,
                 'targetPath' => $path . $ds,
@@ -1030,7 +1038,8 @@ if (!empty($_FILES) && !FM_READONLY) {
             ));
             $response = array(
                 'status' => 'error',
-                'info'   => 'The specified folder for upload isn\'t writeable.'
+                'info'   => 'The specified folder for upload isn\'t writeable.',
+                'debug'  => $debugContext,
             );
             echo json_encode($response);
             exit();
@@ -1077,6 +1086,14 @@ if (!empty($_FILES) && !FM_READONLY) {
                     'info' => "file upload successful"
                 );
             } else {
+                $debugContext = array(
+                    'path' => $path,
+                    'targetPath' => $path . $ds,
+                    'fullPathInput' => $fullPathInput,
+                    'fullPath' => $fullPath,
+                    'folder' => $folder,
+                    'php_error' => error_get_last(),
+                );
                 fm_log_upload_error('open_chunk_output_failed', array(
                     'path' => $path,
                     'targetPath' => $path . $ds,
@@ -1087,7 +1104,8 @@ if (!empty($_FILES) && !FM_READONLY) {
                 ));
                 $response = array(
                     'status'    => 'error',
-                    'info' => "failed to open output stream"
+                    'info' => "failed to open output stream",
+                    'debug' => $debugContext,
                 );
             }
 
@@ -1114,6 +1132,14 @@ if (!empty($_FILES) && !FM_READONLY) {
                 );
             }
         } else {
+            $debugContext = array(
+                'path' => $path,
+                'targetPath' => $path . $ds,
+                'fullPathInput' => $fullPathInput,
+                'fullPath' => $fullPath,
+                'folder' => $folder,
+                'php_error' => error_get_last(),
+            );
             fm_log_upload_error('move_uploaded_file_failed', array(
                 'path' => $path,
                 'targetPath' => $path . $ds,
@@ -1125,6 +1151,7 @@ if (!empty($_FILES) && !FM_READONLY) {
             $response = array(
                 'status'    => 'error',
                 'info'      => "Error while uploading files. Uploaded files $uploads",
+                'debug'     => $debugContext,
             );
         }
     }
