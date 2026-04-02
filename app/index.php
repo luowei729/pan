@@ -996,52 +996,43 @@ if (!empty($_FILES) && !FM_READONLY) {
         exit();
     }
 
-    $targetPath = $path . $ds;
-    if (fm_is_writable_path($targetPath)) {
-        $fullPath = $path . '/' . $fullPathInput;
-        $folder = substr($fullPath, 0, strrpos($fullPath, "/"));
+    $fullPath = $path . '/' . $fullPathInput;
+    $folder = substr($fullPath, 0, strrpos($fullPath, "/"));
 
-        if (!is_dir($folder)) {
-            $old = umask(0);
-            mkdir($folder, 0777, true);
-            umask($old);
+    if (!is_dir($folder)) {
+        $old = umask(0);
+        $created = @mkdir($folder, 0777, true);
+        umask($old);
+        if (!$created && !is_dir($folder)) {
+            $response = array(
+                'status' => 'error',
+                'info'   => 'The specified folder for upload isn\'t writeable.'
+            );
+            echo json_encode($response);
+            exit();
         }
+    }
 
-        if (empty($f['file']['error']) && !empty($tmp_name) && $tmp_name != 'none' && $isFileAllowed) {
-            if ($chunkTotal) {
-                $out = @fopen("{$fullPath}.part", $chunkIndex == 0 ? "wb" : "ab");
-                if ($out) {
-                    $in = @fopen($tmp_name, "rb");
-                    if ($in) {
-                        if (PHP_VERSION_ID < 80009) {
-                            // workaround https://bugs.php.net/bug.php?id=81145
-                            do {
-                                for (;;) {
-                                    $buff = fread($in, 4096);
-                                    if ($buff === false || $buff === '') {
-                                        break;
-                                    }
-                                    fwrite($out, $buff);
+    if (empty($f['file']['error']) && !empty($tmp_name) && $tmp_name != 'none' && $isFileAllowed) {
+        if ($chunkTotal) {
+            $out = @fopen("{$fullPath}.part", $chunkIndex == 0 ? "wb" : "ab");
+            if ($out) {
+                $in = @fopen($tmp_name, "rb");
+                if ($in) {
+                    if (PHP_VERSION_ID < 80009) {
+                        // workaround https://bugs.php.net/bug.php?id=81145
+                        do {
+                            for (;;) {
+                                $buff = fread($in, 4096);
+                                if ($buff === false || $buff === '') {
+                                    break;
                                 }
-                            } while (!feof($in));
-                        } else {
-                            stream_copy_to_stream($in, $out);
-                        }
-                        $response = array(
-                            'status'    => 'success',
-                            'info' => "file upload successful"
-                        );
+                                fwrite($out, $buff);
+                            }
+                        } while (!feof($in));
                     } else {
-                        $response = array(
-                            'status'    => 'error',
-                            'info' => "failed to open output stream",
-                            'errorDetails' => error_get_last()
-                        );
+                        stream_copy_to_stream($in, $out);
                     }
-                    @fclose($in);
-                    @fclose($out);
-                    @unlink($tmp_name);
-
                     $response = array(
                         'status'    => 'success',
                         'info' => "file upload successful"
@@ -1049,44 +1040,53 @@ if (!empty($_FILES) && !FM_READONLY) {
                 } else {
                     $response = array(
                         'status'    => 'error',
-                        'info' => "failed to open output stream"
+                        'info' => "failed to open output stream",
+                        'errorDetails' => error_get_last()
                     );
                 }
+                @fclose($in);
+                @fclose($out);
+                @unlink($tmp_name);
 
-                if ($chunkIndex == $chunkTotal - 1) {
-                    if (file_exists($fullPath)) {
-                        $ext_1 = $ext ? '.' . $ext : '';
-                        $fullPathTarget = $path . '/' . basename($fullPathInput, $ext_1) . '_' . date('ymdHis') . $ext_1;
-                    } else {
-                        $fullPathTarget = $fullPath;
-                    }
-                    rename("{$fullPath}.part", $fullPathTarget);
-                }
-            } else if (move_uploaded_file($tmp_name, $fullPath)) {
-                // Be sure that the file has been uploaded
-                if (file_exists($fullPath)) {
-                    $response = array(
-                        'status'    => 'success',
-                        'info' => "file upload successful"
-                    );
-                } else {
-                    $response = array(
-                        'status' => 'error',
-                        'info'   => 'Couldn\'t upload the requested file.'
-                    );
-                }
+                $response = array(
+                    'status'    => 'success',
+                    'info' => "file upload successful"
+                );
             } else {
                 $response = array(
                     'status'    => 'error',
-                    'info'      => "Error while uploading files. Uploaded files $uploads",
+                    'info' => "failed to open output stream"
                 );
             }
+
+            if ($chunkIndex == $chunkTotal - 1) {
+                if (file_exists($fullPath)) {
+                    $ext_1 = $ext ? '.' . $ext : '';
+                    $fullPathTarget = $path . '/' . basename($fullPathInput, $ext_1) . '_' . date('ymdHis') . $ext_1;
+                } else {
+                    $fullPathTarget = $fullPath;
+                }
+                rename("{$fullPath}.part", $fullPathTarget);
+            }
+        } else if (move_uploaded_file($tmp_name, $fullPath)) {
+            // Be sure that the file has been uploaded
+            if (file_exists($fullPath)) {
+                $response = array(
+                    'status'    => 'success',
+                    'info' => "file upload successful"
+                );
+            } else {
+                $response = array(
+                    'status' => 'error',
+                    'info'   => 'Couldn\'t upload the requested file.'
+                );
+            }
+        } else {
+            $response = array(
+                'status'    => 'error',
+                'info'      => "Error while uploading files. Uploaded files $uploads",
+            );
         }
-    } else {
-        $response = array(
-            'status' => 'error',
-            'info'   => 'The specified folder for upload isn\'t writeable.'
-        );
     }
     // Return the response
     echo json_encode($response);
