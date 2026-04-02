@@ -997,7 +997,7 @@ if (!empty($_FILES) && !FM_READONLY) {
     }
 
     $targetPath = $path . $ds;
-    if (is_writable($targetPath)) {
+    if (fm_is_writable_path($targetPath)) {
         $fullPath = $path . '/' . $fullPathInput;
         $folder = substr($fullPath, 0, strrpos($fullPath, "/"));
 
@@ -2531,6 +2531,29 @@ function fm_mkdir($dir, $force)
         unlink($dir);
     }
     return mkdir($dir, 0777, true);
+}
+
+/**
+ * Detect whether a path is writable by attempting a real write when needed.
+ * This avoids false negatives from is_writable() on some mounted volumes.
+ * @param string $path
+ * @return bool
+ */
+function fm_is_writable_path($path)
+{
+    clearstatcache(true, $path);
+
+    if (!is_dir($path)) {
+        return is_writable($path);
+    }
+
+    $probe = @tempnam($path, '.fmw-');
+    if ($probe === false) {
+        return false;
+    }
+
+    @unlink($probe);
+    return true;
 }
 
 /**
