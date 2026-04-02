@@ -70,7 +70,7 @@ spec:
           # ✅ 使用 PVC（替代 hostPath）
           volumeMounts:
             - name: html-volume
-              mountPath: /var/www/html/www
+              mountPath: /var/www/html/
 
       volumes:
         - name: html-volume
