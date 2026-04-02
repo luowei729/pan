@@ -29,36 +29,41 @@ spec:
               marker="$target/.seeded-from-image"
               lockdir="$target/.seed-lock"
 
+              fix_permissions() {
+                chown -R 33:33 "$target"
+                chmod 2775 "$target"
+                find "$target" -mindepth 1 -type d -exec chmod 2775 {} +
+                find "$target" -type f -exec chmod ug+rw,o+r {} +
+              }
+
               mkdir -p "$target"
 
-              if [ -f "$marker" ]; then
-                echo "Volume already initialized."
-                exit 0
-              fi
+              if [ ! -f "$marker" ]; then
+                if mkdir "$lockdir" 2>/dev/null; then
+                  trap 'rmdir "$lockdir"' EXIT
 
-              if mkdir "$lockdir" 2>/dev/null; then
-                trap 'rmdir "$lockdir"' EXIT
-
-                if [ ! -f "$marker" ]; then
-                  if find "$target" -mindepth 1 -maxdepth 1 \
-                    ! -name '.seed-lock' \
-                    ! -name '.seeded-from-image' \
-                    -print -quit | grep -q .; then
-                    echo "Volume already contains data, skipping seed copy."
+                  if [ ! -f "$marker" ]; then
+                    if find "$target" -mindepth 1 -maxdepth 1 \
+                      ! -name '.seed-lock' \
+                      ! -name '.seeded-from-image' \
+                      -print -quit | grep -q .; then
+                      echo "Volume already contains data, skipping seed copy."
+                    else
+                      cp -a /var/www/html/www/. "$target"/
+                      echo "Seeded files into PVC."
+                    fi
                     touch "$marker"
-                    exit 0
                   fi
-
-                  cp -a /var/www/html/www/. "$target"/
-                  touch "$marker"
-                  echo "Seeded files into PVC."
+                else
+                  echo "Waiting for another pod to finish seeding..."
+                  while [ ! -f "$marker" ]; do
+                    sleep 2
+                  done
                 fi
-              else
-                echo "Waiting for another pod to finish seeding..."
-                while [ ! -f "$marker" ]; do
-                  sleep 2
-                done
               fi
+
+              fix_permissions
+              echo "Normalized permissions for PVC content."
           volumeMounts:
             - name: html-volume
               mountPath: /seed
