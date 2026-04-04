@@ -1,0 +1,5 @@
+{
+    "chatgpt.openOnStartup": true,
+    "chatgpt.runCodexInWindowsSubsystemForLinux": true,
+    "CodeGPT.apiKey": "OpenAI"
+}
