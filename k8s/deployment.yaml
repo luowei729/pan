@@ -67,6 +67,16 @@ spec:
           ports:
             - containerPort: 80
 
+          env:
+            - name: PHP_UPLOAD_MAX_FILESIZE
+              value: "50G"
+            - name: PHP_POST_MAX_SIZE
+              value: "50G"
+            - name: PHP_MEMORY_LIMIT
+              value: "512M"
+            - name: PHP_MAX_EXECUTION_TIME
+              value: "600"
+
           # PVC stores the app root directly, including index.php and uploaded files.
           volumeMounts:
             - name: html-volume
