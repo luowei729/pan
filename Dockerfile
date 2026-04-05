@@ -11,14 +11,15 @@ RUN echo "upload_max_filesize = 50G" >> /usr/local/etc/php/conf.d/uploads.ini &&
     echo "max_execution_time = 600" >> /usr/local/etc/php/conf.d/uploads.ini && \
     echo "max_input_time = 600" >> /usr/local/etc/php/conf.d/uploads.ini
 
+RUN mkdir -p /var/run/php && \
+    chown -R www-data:www-data /var/www/html
+
 COPY --from=nginx:alpine /etc/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY --from=nginx:alpine /etc/nginx/conf.d /etc/nginx/conf.d
-
-RUN mkdir -p /var/www/html && \
-    chown -R www-data:www-data /var/www/html && \
-    sed -i 's|listen = 9000|listen = 127.0.0.1:9000|' /usr/local/etc/php-fpm.d/www.conf
 
 COPY ./app /var/www/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
+
+CMD ["php-fpm"]
