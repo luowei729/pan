@@ -6,7 +6,9 @@ metadata:
 spec:
   selector:
     app: pan
+  sessionAffinity: ClientIP
   ports:
     - port: 80
       targetPort: 80
-  type: ClusterIP   # 或者直接不写（默认就是）
+      nodePort: 32280
+  type: NodePort

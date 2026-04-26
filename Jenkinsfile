@@ -110,6 +110,9 @@ pipeline {
                           --docker-email=xxx@gmail.com \
                           --dry-run=client -o yaml | kubectl apply -f -
 
+                        # 清理旧的 Ingress，改为直接暴露 NodePort 供外部 CDN 回源
+                        kubectl delete ingress pan -n ${K8S_NAMESPACE} --ignore-not-found=true
+
                         # 部署非 Deployment 资源
                         for manifest in k8s/*.yaml; do
                           case "$manifest" in
